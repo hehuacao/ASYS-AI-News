@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """P1.5 内容裁决：按信息实质处理人工裁决队列与待归类池。
 
-规范 AIIS-01 v1.3 第二篇 6.3「规则 + 内容裁决」两层分流：
+规范 AIIS-01 第二篇 6.3「规则 + 内容裁决」两层分流：
 - 规则分类器（classify.py）输出候选与置信度；
 - 本脚本按信息实质（标题 + 摘要 + 信源属性）逐条裁决：
     file   —— 入档（指定节点/子类，置信度记 0.90，标记 adjudicated）
@@ -317,7 +317,7 @@ def main():
     # 报告追加内容裁决记录
     L = []
     L.append("")
-    L.append("## 6. 内容裁决记录（P1.5，规范 v1.2 第二篇 6.3）")
+    L.append("## 6. 内容裁决记录（P1.5，规范 第二篇 6.3）")
     L.append("")
     L.append("- 裁决时间：%s（北京时间）" % C.bj_now().strftime("%Y-%m-%d %H:%M:%S"))
     L.append("- 裁决口径：按信息实质（标题 + 摘要 + 信源属性）判归属；"
@@ -334,7 +334,7 @@ def main():
             iid, title_by_id[iid][:26], action, target, reason))
     L.append("")
     if args.decisions:
-        L.append("> 裁决来源：外部裁决表（%s）。按规范 v1.2，裁决结论应回流为判例"
+        L.append("> 裁决来源：外部裁决表（%s）。按规范，裁决结论应回流为判例"
                  "（规范附录 A）并视系统性缺口改进 classify.py 规则。" % args.decisions)
     else:
         L.append("> 裁决结论已按判例回流：规范附录 A 增补七类判例；"

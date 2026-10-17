@@ -1132,7 +1132,7 @@ def build_items(date_str, only=None, window_h=24, snapshots=None):
         deduped.append(raw)
     raw_items = deduped
 
-    # 跳过快照口径（v1.6 修正）：一个信源只有在**整个合并集内未产出任何
+    # 跳过快照口径：一个信源只有在**整个合并集内未产出任何
     # 有效快照**时才算「跳过」。此前按 source_id 保留最先遇到的失败记录，
     # 会把旧快照目录（如 R-1）的失败原因挂到当期报告上，而该信源当期快照
     # 其实解析成功（只是条目全被窗过滤除）——报告因此失真。
@@ -1422,8 +1422,8 @@ def collapse_duplicate_routes(items, log=None):
         # 【与 source_count 口径的区别，二者不可混用】
         # · source_count 数「有几篇独立报道」→ 同 URL 转载只计 1（否则伪交叉）。
         # · 本函数管「入档清单别出现同一篇文档的两条」→ 同 URL 必须收敛成
-        #   event_member，哪怕它来自两个不同信源。v1.19 起判据从「仅跨信源」
-        #   扩为「跨信源 **或** 同 URL」，否则转载会漏进面板造成重复条目。
+        #   event_member，哪怕它来自两个不同信源。判据为「跨信源 **或** 同 URL」——
+        #   只看跨信源会让同 URL 转载漏进面板，造成重复条目。
         if len(members) < 2:
             continue
         by_url = {}

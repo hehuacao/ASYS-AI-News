@@ -146,7 +146,7 @@ UI_TEXT = {
     "brand": ("月生 · AI 资讯日报", "ASYS · AI NEWS DAILY"),
     "pickdate": ("选择日期", "PICK A DATE"),
     "latest": ("最新", "LATEST"),
-    # v1.15 悬浮导航舱：日期跳转 + 可读性设置
+    # 悬浮导航舱：日期跳转 + 可读性设置
     "dates": ("日期跳转", "JUMP TO DATE"),
     "godate": ("跳到指定日期", "GO TO A DATE"),
     "dateph": ("YYYY-MM-DD，例如 2026-10-14", "YYYY-MM-DD, e.g. 2026-10-14"),
@@ -920,7 +920,7 @@ main{padding-bottom:28px}
     color-mix(in srgb,var(--nc) 4.5%,transparent),transparent 42%),var(--bg-base);
   border:1px solid color-mix(in srgb,var(--nc) 15%,var(--border));
 }
-/* 环节节头：**不吸顶**（v1.20 起）。
+/* 环节节头：**不吸顶**。
    它是小节标题，本就该随正文滚走。吸顶会让它与筛选栏争夺同一段视口顶部空间，
    是历次「叠字」与「透明缝隙」故障的共同根源（实测记录见上方「分区与属性筛选栏」）。
    因此这里没有 position:sticky、没有 top、没有 z-index；
@@ -965,7 +965,7 @@ main{padding-bottom:28px}
   background:color-mix(in srgb,var(--bg-surface) 45%,transparent);
 }
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-/* 渐进加载（v1.14）：超出「已展开」的卡片用 hidden 收起（`.card` 自带 display:flex，
+/* 渐进加载：超出「已展开」的卡片用 hidden 收起（`.card` 自带 display:flex，
    必须显式覆盖，否则 UA 的 [hidden]{display:none} 优先级不够）。
    取代原先的「查看全部」——100+ 条一次铺开，收起时文档高度骤减、视口必然乱跳。 */
 .card[hidden]{display:none!important}
@@ -1038,7 +1038,7 @@ main{padding-bottom:28px}
   color:var(--success);border:1px solid color-mix(in srgb,var(--success) 45%,transparent);
   background:color-mix(in srgb,var(--success) 10%,transparent);
 }
-/* ============ 热点 ↔ 面板（v1.11 双向定位 / v1.12 只解必要隐藏 / v1.13 高亮收尾不闪） ============ */
+/* ============ 热点 ↔ 面板 ============ */
 /* 热点条目行尾的「环节 · 序号」定位按钮：一条热点落在哪个环节、第几条，一眼可见 */
 .hot-row{display:flex;align-items:center;gap:4px;padding-right:14px}
 .hot-row .hot-head{width:auto;flex:1;min-width:0}
@@ -1144,7 +1144,7 @@ html[data-theme="light"] .overlay,html[data-theme="auto"] .overlay{
 }
 .drawer[hidden]{display:none}
 .drawer.open{transform:none}
-/* v1.16 抽屉顶栏重排：左（环节 › 子类）· 中（语言三态）· 右（上一条/下一条/复制/关闭）。
+/* 抽屉顶栏重排：左（环节 › 子类）· 中（语言三态）· 右（上一条/下一条/复制/关闭）。
    左侧面包屑**最多两行紧凑显示**（`-webkit-line-clamp:2` + 收紧行高），并 `flex:1;min-width:0`；
    语言三态与动作键组 `flex:none` + `white-space:nowrap`——旧版左侧标题一长就把三态挤到换行，
    「原文」两字被压成竖排（每行一字），完全读不出来。窄屏改为两行布局：三态独占第二行左端。 */
@@ -1170,7 +1170,7 @@ html[data-theme="light"] .overlay,html[data-theme="auto"] .overlay{
 .icon-btn:hover{color:var(--text-primary);border-color:var(--accent-capability)}
 .icon-btn:disabled{opacity:.35;cursor:not-allowed}
 .drawer-body{flex:1;overflow-y:auto;padding:22px 24px 30px;overscroll-behavior:contain}
-/* v1.15 · 详情页的译文交互：标题行 + 显式「译」按钮 + 语言三态（就地切换，不必回顶栏） */
+/* 详情页的译文交互：标题行 + 显式「译」按钮 + 语言三态（就地切换，不必回顶栏） */
 .drawer-lang{flex:none;margin-right:2px;white-space:nowrap}
 .drawer-lang button{padding:4px 8px;font-size:11px;white-space:nowrap}
 .drawer-trow{display:flex;align-items:flex-start;gap:10px;margin:12px 0 10px}
@@ -1219,7 +1219,7 @@ html[data-theme="light"] .overlay,html[data-theme="auto"] .overlay{
 .drawer-alt .da-sum{font-weight:400}
 .drawer-note{font-size:11.5px;color:var(--text-muted);margin-top:8px;line-height:1.6}
 .drawer-meta{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
-/* 抽屉里的「交叉热点」说明盒（v1.12 重设计）：默认只占一行——
+/* 抽屉里的「交叉热点」说明盒：默认只占一行——
    「交叉热点 · N 信源」+「回到上方热点条目」，说明正文收起；
    点这一行（除右侧跳转按钮外）才展开说明，避免说明盒抢占视觉重心。 */
 .drawer-hotbox{
@@ -1292,7 +1292,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
 .btn-ghost:hover{color:var(--text-primary);border-color:var(--accent-capability)}
 
 /* ============ 页脚 / Toast ============ */
-/* 脚注三列版式（v1.12 起，v1.13 调列宽与对齐）：① 中文标签 ② 英文标签 ③ 内容。
+/* 脚注三列版式：① 中文标签 ② 英文标签 ③ 内容。
    列宽固定，四行严格对齐、三列一律左对齐。基准：中文列 = 4 个汉字（12px × 4 = 48px，留 2px 余量 → 50px）；
    英文列 = 10 个英文大写字符（实测 9px + .1em 字距下 10 字符 ≈ 66–68px，取 68px）。
    **三列按基线对齐**（align-items:baseline）：英文标签字号小、行盒矮，若按顶对齐会整体高出中文标签一截。
@@ -1325,7 +1325,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
 .no-result{display:none;padding:40px 0;text-align:center;color:var(--text-muted);font-size:14px}
 .day.searching .no-result{display:block}
 
-/* ============ v1.14 · 阅读控制：悬浮导航舱（桌面）/ 底部操作条（移动） ============
+/* ============ 阅读控制：悬浮导航舱（桌面）/ 底部操作条（移动） ============
    一个控件承担三件事：**我在哪**（进度环 + 当前环节高亮）、**我能去哪**（回顶 / 回底 /
    环节跳转）、**快捷动作**（命令面板）。滚动停止 1.2s 后降到 40% 不透明度——控件
    不该比内容抢眼。移动端：改为底部横条 + 顶部 2px 进度条，触达目标 ≥44px（iOS HIG），
@@ -1360,7 +1360,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
   stroke-linecap:round;stroke-dasharray:119.38;stroke-dashoffset:119.38;
   transition:stroke-dashoffset .1s linear}
 .np-ring-ico{position:relative;display:grid;place-items:center}
-/* 环节面板：与 v1.15 的日期 / 阅读设置面板同一套壳（绝对定位，默认吊在舱上方，
+/* 环节面板：与 的日期 / 阅读设置面板同一套壳（绝对定位，默认吊在舱上方，
    打开时由脚本 anchorPanel() 改为贴按钮定位并收紧高度，保证顶部一行也在视口内）。 */
 .np-list{
   position:absolute;right:0;bottom:calc(100% + 10px);
@@ -1382,7 +1382,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
   color:var(--text-muted)}
 .np-item[aria-current="true"]{background:color-mix(in srgb,var(--nc) 12%,transparent);
   color:var(--text-primary);font-weight:600}
-/* v1.15 · 面板统一壳（环节 / 日期 / 阅读设置共用，只换内容）：
+/* 面板统一壳（环节 / 日期 / 阅读设置共用，只换内容）：
    三个面板都绝对定位在导航舱上方，互斥打开——一次只让读者看一件事。 */
 .np-panel{
   position:absolute;right:0;bottom:calc(100% + 10px);
@@ -1414,7 +1414,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
 .np-date.is-latest b{color:var(--accent-capability)}
 .np-date[aria-current="true"]{background:var(--bg-elevated);color:var(--text-primary);font-weight:650}
 .np-date[aria-current="true"] i{background:var(--accent-capability)}
-/* 指定日期输入行：格式提示 + 实时校验反馈（见 v1.15 §交互） */
+/* 指定日期输入行：格式提示 + 实时校验反馈 */
 .np-jump{margin-top:6px;padding:9px 8px 3px;border-top:1px solid var(--border)}
 .np-jump label{display:block;margin-bottom:6px;font-size:10.5px;font-weight:700;
   letter-spacing:.12em;color:var(--text-muted)}
@@ -1450,7 +1450,7 @@ html[data-theme="light"] .btn-primary,html[data-theme="auto"] .btn-primary{color
   background:linear-gradient(90deg,var(--accent-capability),var(--accent-product));
   transition:width .1s linear}
 
-/* ============ v1.14 · 双语对照层 ============
+/* ============ 双语对照层 ============
    标题 = 信源原标题（规范 R-02 硬约束），故译文只能作为**附加层**，且标注机器翻译。
    三种触发：① 桌面悬停浮层（position:fixed，不占文档流 → 绝不会引起上下跳动）
    ② 触屏无 hover → 卡片上的「译」图标点开就地对照 ③ 顶栏三态全局开关。 */
@@ -1522,7 +1522,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
 .lang-switch button[aria-pressed="true"]{background:var(--bg-surface);
   color:var(--accent-capability)}
 
-/* ============ v1.14 · 命令面板（⌘K / Ctrl+K） ============
+/* ============ 命令面板（⌘K / Ctrl+K） ============
    一个输入框容纳「跳日期 / 跳环节 / 搜标题 / 切窗口 / 切主题 / 回热点 / 复制清单」，
    替代层层菜单——现有切日、筛选、搜索逻辑可直接复用。 */
 .cmdk{position:fixed;inset:0;z-index:90;display:grid;place-items:start center;
@@ -1556,7 +1556,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
 .cmdk-item.is-cursor{background:var(--bg-elevated);color:var(--text-primary)}
 .cmdk-item.is-cursor em{color:var(--accent-capability)}
 
-/* ============ v1.14 · 骨架屏（运行态取数等高占位，避免内容跳变） ============ */
+/* ============ 骨架屏（运行态取数等高占位，避免内容跳变） ============ */
 .skel{padding:0}
 .skel-h{height:26px;width:38%;border-radius:8px;margin:6px 0 18px}
 .skel-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
@@ -1571,7 +1571,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
 @keyframes skel{to{background-position:-120% 0}}
 @media (prefers-reduced-motion:reduce){.skel-h,.skel-card{animation:none}}
 
-/* ============ v1.14 · 继续上次阅读（重访提示） ============ */
+/* ============ 继续上次阅读（重访提示） ============ */
 .resume{
   position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(12px);
   z-index:46;display:flex;align-items:center;gap:10px;padding:9px 14px;
@@ -1584,7 +1584,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
 .resume button{font-size:12.5px;font-weight:700;color:var(--accent-capability)}
 .resume .resume-x{color:var(--text-muted);font-size:15px;line-height:1;padding:0 2px}
 
-/* ============ v1.14 · 打印：今日清单可直接出纸面版 ============ */
+/* ============ 打印：今日清单可直接出纸面版 ============ */
 @media print{
   .topbar,.navpod,.cmdk,.mprog,.resume,.filters,.searchbox,.lang-switch,
   .theme-switch,.datepicker,.more-bar,.drawer,.overlay,.toast,.src-notice,
@@ -1648,7 +1648,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
     width:min(320px,calc(100vw - 24px));
     padding:8px;box-shadow:var(--shadow-pop)}
   .np-item{padding:11px 12px;min-height:44px;font-size:14px}
-  /* v1.15 日期 / 阅读设置面板：与环节面板同一形态，宽度放宽到 320px 便于日期与输入 */
+  /* 日期 / 阅读设置面板：与环节面板同一形态，宽度放宽到 320px 便于日期与输入 */
   .np-panel{position:absolute;bottom:calc(100% + 10px);right:auto;left:50%;
     width:min(320px,calc(100vw - 24px));max-height:min(66vh,520px)}
   .np-date{padding:11px 12px;min-height:44px;font-size:14px}
@@ -1804,7 +1804,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
   <div class="drawer-head">
     <div class="drawer-crumb" id="drawerCrumb"></div>
-    <!-- v1.15：详情页就地切语言（与顶栏双向同步） -->
+    <!-- 详情页就地切语言（与顶栏双向同步） -->
     <div class="lang-switch drawer-lang" id="drawerLang" role="group" aria-label="语言模式">
       <button type="button" data-lang-mode="orig" aria-pressed="true"
         title="只显示信源原文（规范：标题不改写）">原文</button>
@@ -1830,7 +1830,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
      （移动端形态见响应式段） -->
 <nav class="navpod" id="navpod" aria-label="阅读定位与导航">
   <div class="np-list" id="npList" role="menu" aria-label="环节导航" hidden></div>
-  <!-- v1.15 日期跳转面板：最近 10 天直达 + 指定日期输入（格式 YYYY-MM-DD，实时校验） -->
+  <!-- 日期跳转面板：最近 10 天直达 + 指定日期输入（格式 YYYY-MM-DD，实时校验） -->
   <div class="np-panel" id="npDate" role="menu" aria-label="日期跳转" hidden>
     <div class="np-cap"><span data-ui="dates">日期跳转</span><em>DATES</em></div>
     <div id="npDateRows"></div>
@@ -1841,7 +1841,7 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
       <p class="np-hint" id="npDateHint"></p>
     </div>
   </div>
-  <!-- v1.15 阅读设置面板：字号三档 + 密度两档（原来只藏在命令面板里，等于没有） -->
+  <!-- 阅读设置面板：字号三档 + 密度两档（原来只藏在命令面板里，等于没有） -->
   <div class="np-panel" id="npRead" role="group" aria-label="阅读设置" hidden>
     <div class="np-cap"><span data-ui="read">阅读设置</span><em>READING</em></div>
     <div class="np-grp">
@@ -2257,7 +2257,7 @@ async function switchView(d, w){
   if (!dateMenu.hidden) renderCal();
   updateSpyManual(); updateMiniAxis();
   syncTopbarH(); syncStickyHeights(); updateNavpod(); syncNodeList(); writeHash();
-  refreshPanels();                                   // v1.15：开着悬浮舱面板时同步其内容
+  refreshPanels();                                   // 开着悬浮舱面板时同步其内容
   document.title = "月生 · AI 资讯日报 " + d;
   if (drawer.classList.contains("open")) closeDrawer();
   if (booted) { hideResume(); checkResume(); }
@@ -2551,7 +2551,7 @@ const drawer = $("#drawer"), overlay = $("#overlay"), body = $("#drawerBody");
 function visibleCardsInNode(node){
   return dayCards().filter(c => c.dataset.node === node && cardShown(c));
 }
-/* ============ v1.15 抽屉头部：标题 + 摘要 + 对照译文（三模式各自成形） ============
+/* ============ 抽屉头部：标题 + 摘要 + 对照译文（三模式各自成形） ============
    原文：原文在前，标题行右侧「译」按钮点开即就地对照（触屏无悬停时的等价入口）
    对照：原文在前，译文按「标题一块 / 摘要一块」紧随其后，读者能逐块对上号
    目标语：译文为主（用全文译文 summary_full_alt，不用压缩摘要译文），原文退为附注
@@ -2562,7 +2562,7 @@ function drawerLeadHTML(it){
   const tOrig = it.title || "", tAlt = it.title_alt || "";
   const sOrig = it.summary_full || it.summary || "";
   // 摘要译文只用**全文译文**（与正文同源）；没有全文译文时宁可留空并说明，
-  // 也不拿压缩摘要译文冒充全文——那正是「译文不完整」的观感来源（v1.15 用户实测）。
+  // 也不拿压缩摘要译文冒充全文——那正是「译文不完整」的观感来源。
   const sAltFull = it.summary_full_alt || "";
   const sAltCard = it.summary_alt || "";
   const sAlt = sAltFull || sAltCard;
@@ -2671,7 +2671,7 @@ function openDrawer(id){
     'rel="noopener noreferrer" title="' + escHtml(s.source_name) +
     ' 就同一事件的另一条收录">' + escHtml(relDom(s.url)) + "</a>").join("");
   const relSrcCount = ev ? (ev.source_count || relGroups.length) : relGroups.length;
-  /* v1.15 详情页译文交互（规范 2.4）：抽屉是深读场景，原文模式下也必须能拿到译文。
+  /* 详情页译文交互（规范 2.4）：抽屉是深读场景，原文模式下也必须能拿到译文。
      三条入口：① 标题/摘要**悬停**出对照浮层（抽屉内同样可用，与卡片一致）
      ② 标题行右侧显式「译」按钮（触屏无悬停时的等价入口，点开即就地对照）
      ③ 抽屉头部语言三态，可把整页切成「对照 / 目标语」。
@@ -2789,7 +2789,7 @@ function closeDrawer(){
   curIdx = -1; drawerItem = null; drBiOn = false;
 }
 body.addEventListener("click", e => {
-  // v1.15 详情页译文入口：标题行右侧「译」按钮（触屏无悬停时的等价入口）
+  // 详情页译文入口：标题行右侧「译」按钮（触屏无悬停时的等价入口）
   const bb = e.target.closest ? e.target.closest("[data-dr-bi]") : null;
   if (bb){ drBiOn = !drBiOn; applyDrBi(); return; }
   const j = e.target.closest ? e.target.closest(".dhb-jump") : null;
@@ -2883,7 +2883,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "k" || e.key === "ArrowUp"){ e.preventDefault(); kbMove(-1); }
 });
 
-/* ============ v1.14 · 术语表与双语对照层 ============ */
+/* ============ 术语表与双语对照层 ============ */
 const UI = UI_TEXT || {};
 const uiZh = k => (UI[k] ? UI[k][0] : "");
 const uiEn = k => (UI[k] ? UI[k][1] : "");
@@ -2909,7 +2909,7 @@ function placeBipop(el){
   biPop.style.left = Math.max(M, left) + "px";
   biPop.style.top = Math.max(M, top) + "px";
 }
-/* v1.15 浮层内容：固定三行 —— ① 提示徽标 ② 标题 ③ 摘要（≤60 汉字）。
+/* 浮层内容：固定三行 —— ① 提示徽标 ② 标题 ③ 摘要（≤60 汉字）。
    方向随语言模式自动对调：原文 / 对照模式下给译文，目标语模式下给信源原文。 */
 const SRC_ORIG = uiZh("srcorig") || "信源原文";
 function biPayload(el){
@@ -3012,9 +3012,9 @@ $("#drawerLang").addEventListener("click", e => {
   if (b) setLangMode(b.dataset.langMode, true);
 });
 
-/* ============ v1.14 · 渐进加载（取代「查看全部」） ============ */
-/* 批次：桌面 20 条 / 移动 10 条（v1.15 由 24 改为 20，一屏约两行半、点「展开更多」
-   后落点仍在视野内，不必重新找位置） */
+/* ============ 渐进加载（取代「查看全部」） ============ */
+/* 批次：桌面 20 条 / 移动 10 条——一屏约两行半，点「展开更多」后落点仍在视野内，
+   不必重新找位置。 */
 const stepSize = () => (innerWidth < 768 ? 10 : 20);
 const INIT_SHOWN = 8;
 function syncShown(){
@@ -3070,7 +3070,7 @@ function ensureCardVisible(card){
   syncShown();
 }
 
-/* ============ v1.14 · 悬浮导航舱 ============ */
+/* ============ 悬浮导航舱 ============ */
 const navpod = $("#navpod"), npList = $("#npList"), npRing = $("#npRingBar");
 const mprogBar = $("#mprog i"), topbarEl = document.querySelector(".topbar");
 const RING_C = 2 * Math.PI * 19;
@@ -3162,7 +3162,7 @@ function syncNodeList(){
   $$(".np-item", npList).forEach(b =>
     b.setAttribute("aria-current", String(b.dataset.node === cur)));
 }
-/* ============ v1.15 悬浮舱三面板（环节 / 日期 / 阅读设置）互斥 ============
+/* ============ 悬浮舱三面板（环节 / 日期 / 阅读设置）互斥 ============
    一次只让读者看一件事：打开一个就关掉另外两个，点导航舱外部全部收起。
    定位：**贴着各自的按钮弹出**（底边对齐按钮顶边），不是一律吊在整舱上方——
    吊在舱上方时面板底部离视口上沿太近，日期面板一行十几天，顶部那几行会看不全、点不到。
@@ -3329,7 +3329,7 @@ document.addEventListener("click", e => {
   if (!(e.target.closest && e.target.closest("#navpod"))) closePanels();
 });
 
-/* ============ v1.14 · 命令面板（⌘K / Ctrl+K） ============ */
+/* ============ 命令面板（⌘K / Ctrl+K） ============ */
 const cmdk = $("#cmdk"), cmdkInput = $("#cmdkInput"), cmdkList = $("#cmdkList");
 let cmdCursor = 0, cmdItems = [];
 function cmdActions(){
@@ -3421,7 +3421,7 @@ cmdkList.addEventListener("click", e => {
 });
 cmdk.addEventListener("mousedown", e => { if (e.target === cmdk) closeCmd(); });
 
-/* ============ v1.14 · 深链 / 导出 / 阅读位置 / 可读性 ============ */
+/* ============ 深链 / 导出 / 阅读位置 / 可读性 ============ */
 function writeHash(){
   if (!DATA.current) return;
   const h = "#/" + DATA.current + "/" + DATA.window + "h";
@@ -3471,7 +3471,7 @@ function fallbackCopy(text){
     return ok;
   } catch (e){ return false; }
 }
-/* v1.15 密度：紧凑档把标题与摘要各压到 2 行、隐藏标签行、收紧卡内间距，
+/* 密度：紧凑档把标题与摘要各压到 2 行、隐藏标签行、收紧卡内间距，
    同一屏大约多看三分之一条目（原先只收 gap 与内边距，几乎看不出差别）。 */
 function setDensity(dense, silent){
   $$(".grid", dayEl).forEach(g => g.classList.toggle("dense", dense));
@@ -3480,7 +3480,7 @@ function setDensity(dense, silent){
   if (!silent)
     showToast(dense ? "已切换到紧凑密度（同屏条目更多）" : "已切换到标准密度");
 }
-/* v1.15 字号：正文、卡片标题/摘要、抽屉正文与译文都乘同一比例尺（--fs），
+/* 字号：正文、卡片标题/摘要、抽屉正文与译文都乘同一比例尺（--fs），
    以前只有 body 生效、其余写死 px，等于开关无感。 */
 function setFontScale(v){
   document.documentElement.style.setProperty("--fs", v);

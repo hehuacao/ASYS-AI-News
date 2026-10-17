@@ -170,11 +170,10 @@ def main():
               not missing,
               "24h 有 %d 条热点在 48h 中找不到同成员事件：%s" % (len(missing), missing[:2]))
 
-        # D4（v1.19 新增）热点必须是**真交叉**：`source_count` 数的是独立报道的
-        # 信源数，不是「有几家转载过同一篇原文」。T3 聚合站与 T4 社区会把原文
-        # 原样转载（URL 相同），早先按 source_id 去重会把一篇报道算成 2 个信源，
-        # 凭一条转载混进热点区、并顺带污染头条判定（实证 10-13：24h 6 条热点里
-        # 4 条是伪交叉；10-14：48h 9 条里 5 条）。
+        # D4 热点必须是**真交叉**：`source_count` 数的是独立报道的信源数，不是
+        # 「有几家转载过同一篇原文」。聚合策展站与社区站会把原文原样转载（URL 相同），
+        # 按 source_id 去重会把一篇报道算成 2 个信源，凭一条转载混进热点区、
+        # 并顺带污染头条判定。
         # 断言口径与 classify._independent_source_ids 一致：**独立报道数 ≥ 信源数**，
         # 且落在热点区的事件至少有 2 篇不同 URL 的独立报道。
         def indep_reports(h):
@@ -245,7 +244,7 @@ def main():
                   "country", "country_name", "region", "published_bj", "time_basis",
                   "url", "mirror_url", "tags_b", "tags_c",
                   "hot_event", "hot_sources",
-                  # v1.14 双语附加层（译文只作对照，不替换原文）
+                  # 双语附加层（译文只作对照，不替换原文）
                   "lang", "title_alt", "summary_alt", "summary_full_alt",
                   "alt_reviewed", "summary_full_alt_partial"} for i in v["items"]))
 

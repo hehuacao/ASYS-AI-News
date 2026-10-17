@@ -50,8 +50,8 @@ TABLE_PATH = TRANS_ROOT / "译表.json"
 BASE_URL = os.environ.get("AGNES_BASE_URL", "https://api.agnes-ai.cn/v1")
 DEFAULT_MODEL = "agnes-3.0-flash"
 PROVIDER = "agnes"
-# 摘要全文的切段策略（v1.16）：旧版是「硬截到 500 字符」，导致长摘要译文只覆盖开头，
-# 详情页对照时读者看到「译文不完整」。改为**按句边界切段、逐段独立翻译、按序拼接**。
+# 摘要全文的切段策略：**按句边界切段、逐段独立翻译、按序拼接**。
+# 若改为硬截到固定字符数，长摘要的译文只覆盖开头，详情页对照时读者看到「译文不完整」。
 SEG_MAX = 1200      # 单段送译的字符数上限（一次请求的原文体量）
 MAX_SEG = 8         # 单条最多译 8 段（覆盖到 ~9.6k 字符；实测最长 5.5k，足够）
 SENT_END = re.compile(r"(?<=[.!?。！？；;])\s+|\n+")

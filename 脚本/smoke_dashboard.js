@@ -254,7 +254,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     /24H 条数/.test(doc.querySelector(".dm-foot").textContent) &&
     /48H 条数/.test(doc.querySelector(".dm-foot").textContent) &&
     /PgUp\/PgDn 翻月/.test(doc.querySelector(".dm-tip").textContent));
-  // 窗口条数配色（v1.7）：24H 能力青 → 48H 同族冷蓝，同冷色域色相梯度
+  // 窗口条数配色：24H 能力青 → 48H 同族冷蓝，同冷色域色相梯度
   {
     const hue = (hex) => {
       const n = parseInt(hex.slice(1), 16);
@@ -488,7 +488,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     t("热点横条可展开", !tl.hidden && hot.getAttribute("aria-expanded") === "true");
   }
 
-  // 交互：热点 ↔ 面板 双向定位（v1.11）
+  // 交互：热点 ↔ 面板 双向定位
   {
     const cur = curView();
     const hotIds = (cur.hot_events || []).map(e => e.canonical_item).filter(Boolean);
@@ -506,7 +506,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         /\S/.test(j.textContent.trim()) && j.querySelector("b")),
       jumps.length ? jumps[0].textContent.trim() : "无");
     if (jumps.length) {
-      // v1.12：定位只解开**真正挡住目标卡片**的那一处
+      // 定位只解开**真正挡住目标卡片**的那一处
       //  ① 已显示的卡片 → 什么都不解开（不该牵动整块面板）
       //  ② 被「查看全部」折叠挡住 → 只展开它所属的环节
       //  ③ 被筛选隐藏 → 还原筛选
@@ -539,7 +539,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         t("定位已显示的卡片：折叠与筛选状态一律不变",
           expandedSet() === before && visibleDay.querySelector(".filter-reset").hidden,
           "折叠 [" + before + "] → [" + expandedSet() + "]");
-        // v1.13：高亮结束必须把动画定点关掉——`.card` 自带 rise 出现动画，
+        // 高亮结束必须把动画定点关掉——`.card` 自带 rise 出现动画，
         // 只移 .is-target 会让 animation 回落到 rise，卡片在高亮后自己又闪一次（用户实测报告）。
         await sleep(2700);
         t("定位高亮收尾后卡片不重放出现动画（高亮后不再闪一下）",
@@ -644,7 +644,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         !!bodyEl.querySelector(".rel-list") &&
         bodyEl.querySelectorAll(".rel-list li").length > 0);
       t("抽屉回跳按钮存在", !!bodyEl.querySelector(".dhb-jump"));
-      // v1.12：说明盒默认只占一行，点这一行才展开说明
+      // 说明盒默认只占一行，点这一行才展开说明
       const dhbNote = bodyEl.querySelector(".dhb-note");
       const dhbToggle = bodyEl.querySelector(".dhb-toggle");
       t("交叉热点说明盒默认收起（只占一行）",
@@ -742,7 +742,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   t("节点描述位于标题行内（右侧）",
     [...visibleDay.querySelectorAll(".node-desc")].length === 5 &&
     [...visibleDay.querySelectorAll(".node-desc")].every(d => !!d.closest(".node-title-row")));
-  // v1.2：重要徽标金色重点化（有重要条目时）
+  // 重要徽标金色重点化（有重要条目时）
   const impBadges = visibleDay.querySelectorAll(".badge-imp");
   const impCards = visibleDay.querySelectorAll('.card[data-importance="重要"]').length;
   t("重要徽标数 = 重要卡片数", impBadges.length === impCards,
@@ -758,7 +758,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   t("五节点计数齐全", counts.length === 5 && counts.every(c => /\d+(\s*\/\s*\d+)?\s*条/.test(c)),
     counts.join(" | "));
 
-  // 脚注三列版式（v1.12）：① 中文标签（≤4 汉字）② 英文标签（≤12 字符）③ 内容
+  // 脚注三列版式：① 中文标签（≤4 汉字）② 英文标签（≤12 字符）③ 内容
   {
     const rows = [...visibleDay.querySelectorAll(".foot-row")];
     t("脚注三列结构（中文标签 + 英文标签 + 内容）",
@@ -807,7 +807,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(1200);
   }
 
-  // ============ v1.14 · 阅读控制与双语对照 ============
+  // ============ 阅读控制与双语对照 ============
   {
     // —— 渐进加载：结构 + 初始态 + 批次 + 读数 + 收起
     const day = doc.getElementById("dayHost");
@@ -923,10 +923,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       String(doc.defaultView.location.hash));
   }
 
-  /* ============ v1.15 · 六项修订验收 ============ */
+  /* ============ 六项修订验收 ============ */
   {
     const css = html;
-    // ① 环节节头（v1.20 起不再吸顶）：不得有 sticky / is-stuck / 渐隐伪元素
+    // ① 环节节头：不得有 sticky / is-stuck / 渐隐伪元素
     t("节头：不吸顶（无 sticky/top/z-index）",
       /\.node-head\{[^}]*position:relative/.test(css) &&
       !/\.node-head\{[^}]*position:sticky/.test(css));

@@ -404,7 +404,7 @@ var FRAGMENTS = (function () {
       ? ' data-lang="' + esc(it.lang || "") + '"' +
         ' data-title-alt="' + esc(it.title_alt || "") + '"' +
         ' data-summary-alt="' + esc(it.summary_alt || "") + '"' +
-        // v1.15：同时带上原文，目标语模式下悬停取原文（浮层方向随语言模式对调）
+        // 同时带上原文，目标语模式下悬停取原文（浮层方向随语言模式对调）
         ' data-title-orig="' + esc(it.title || "") + '"' +
         ' data-summary-orig="' + esc(it.summary || "") + '"'
       : "";
@@ -480,7 +480,7 @@ var FRAGMENTS = (function () {
       "</article>";
   }
 
-  /* 渐进加载（v1.14）：一次渲染全部卡片，超出「已展开」的用 hidden 收起，
+  /* 渐进加载：一次渲染全部卡片，超出「已展开」的用 hidden 收起，
      由外壳按批次增量放开——**不再提供「查看全部」**：100+ 条一次铺开，收起时
      文档高度骤减，视口必然乱跳。批次大小随断点（桌面 24 / 移动 10）。 */
   var INIT_SHOWN = 8;

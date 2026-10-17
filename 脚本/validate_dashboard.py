@@ -225,7 +225,7 @@ for frag, name in [
     ("#DE2910", "国旗红"),
     # 修改项回归
     ("summary_full", "抽屉摘要全文字段"),
-    # v1.14：渐进加载取代「查看全部」（不再有 .show-all）
+    # 渐进加载取代「查看全部」（不再有 .show-all）
     (".more-bar{", "渐进加载容器"), (".more-btn{", "展开更多按钮"),
     (".card[hidden]{display:none!important}", "渐进加载收起优先于卡片自身 display"),
     ("#navpod", "悬浮导航舱"), ('class="np-ring-bar"', "导航舱进度环"),
