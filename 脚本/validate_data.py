@@ -42,24 +42,14 @@ def load_registry():
 
 
 def norm_url(u):
-    """URL 归一化：去协议头 / 锚点 / 尾斜杠 / 常见跟踪参数。"""
-    if not u:
-        return ""
-    u = u.split("#")[0].strip()
-    for p in ("http://", "https://"):
-        if u.startswith(p):
-            u = u[len(p):]
-    if u.startswith("www."):
-        u = u[4:]
-    for sep in ("?", "&"):
-        if sep in u:
-            head, _, q = u.partition(sep)
-            keep = [kv for kv in q.split("&")
-                    if not kv.lower().startswith(("utm_", "ref=", "ref_"))]
-            u = head + (("?" + "&".join(keep)) if keep and sep == "?" else "")
-            if sep == "?":
-                u = head + (("?" + "&".join(keep)) if keep else "")
-    return u.rstrip("/").lower()
+    """URL 归一化：直接复用去重键的唯一实现 `classify.norm_url`。
+
+    校验脚本不得自带第二套归一化——两套实现一旦漂移，就会出现「数据没重复、
+    断言报重复」的假失败（拆分查询参数时不能把第一个 `&` 之后的内容整体丢掉：
+    同一公众号下 `__biz` 相同、`mid` 不同的两篇文章会被判成同一篇）。
+    """
+    import classify as C
+    return C.norm_url(u)
 
 
 def day_ds():

@@ -113,7 +113,13 @@ function liveFetch(calls){
       notice.hidden = true;
       off.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
       await sleep(300);
-      return !notice.hidden && /未能读到 数据\/视图\//.test(notice.textContent);
+      // 判据是「说明了**该日期**取不到」这一实质，而非整站不可读的话术：
+      // 「某日数据缺失」与「数据目录整体不可读」是两回事，本断言守的是前者。
+      // 反向验证记录：曾写成 `/读不到 .* 的数据|未能读到/`，而 `未能读到` 分支
+      // 恰好能匹配旧的整体不可读文案 → 注入「静默失败」缺陷后仍然 PASS，断言失效。
+      // 故此处只认日期专属文案，不留可被整体不可读文案满足的旁路。
+      return !notice.hidden &&
+        new RegExp("读不到 " + off.dataset.date + " 的数据").test(notice.textContent);
     })());
   }
 
@@ -173,9 +179,18 @@ function liveFetch(calls){
     }
     t("C 全部日期 × 双窗口按需取数并渲染正确（" + days.length + " 日）",
       bad.length === 0, bad.slice(0, 3).join(" | "));
-    t("C 按需取数走的是探测到的数据根（" + calls0.length + " 次请求）",
-      calls0.length > 1 && calls0.every(u => /^(\.\.\/)?数据\/视图\//.test(u)),
-      calls0.slice(0, 3).join(" | "));
+    /* 判据不写死具体是哪个根：候选顺序（ASCII 优先）是实现细节，会随托管环境调整，
+       写死就会在改顺序时假失败（踩过：ASCII 前置后此处曾误报）。
+       可验证的实质是：① 探测只发一次 index.json（上面已单列断言）；
+                     ② 之后所有请求落在**同一个**根上 —— 即 VIEW_BASE 一经固定即复用。
+       注意夹具 liveFetch 把任意根都映射到同一磁盘目录，故「多根」在夹具里不可触发；
+       真正的防回归由 validate_dashboard 的候选顺序断言 + 线上 Chrome 实测承担。 */
+    const roots = [...new Set(calls0.map(u => String(u).slice(0, String(u).lastIndexOf("/") + 1)))];
+    t("C 按需取数全程复用同一个探测到的数据根（" + calls0.length + " 次请求 · " +
+        roots.length + " 个根）",
+      roots.length === 1 && calls0.length >= 1,
+      roots.length !== 1 ? "出现多个数据根：" + roots.join(" , ")
+                          : "根为 " + roots[0] + " · " + calls0.slice(0, 3).join(" | "));
   }
 
   console.log(results.join("\n"));

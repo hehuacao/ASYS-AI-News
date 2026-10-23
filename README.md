@@ -28,7 +28,9 @@ ASYS-AI-News/
 │   ├── render_fragments.js   渲染实现（唯一一份）
 │   ├── gen_runtime_assets.py 导出前端资产
 │   ├── export_spec_summary.py 由完整规范派生公开摘要
+│   ├── sync_publish.py        同步发布目录（视图的派生子集）
 │   ├── release.py            打包发布
+│   ├── deploy_cloudflare.py   部署到 Cloudflare Pages（含部署后线上校验）
 │   ├── validate_*.py          数据 / 投影 / 页面 / 吸顶几何校验
 │   ├── smoke_*.js             页面冒烟测试（需 jsdom）
 │   ├── probe_*.js             一次性取证脚本（真实浏览器量测）

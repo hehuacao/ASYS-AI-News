@@ -7,7 +7,14 @@
     --mode data    只打包数据目录——日常更新
     --mode shell   只打包界面（index.html）——界面改版
 
-产物（`发布/ai_news_daily-<打包日期>/`）：
+两种数据源（--source）：
+    views（默认）   数据/视图/  —— 全量，历史全部随包
+    publish         数据/发布/  —— 增量：窗口内数据 + **完整索引**
+    两者都由 `脚本/sync_publish.py` 之外的独立流程维护：发布目录是视图目录的派生子集
+    （近N 天数据 + 全量 index.json），索引给全量是为了线上保留全部历史导航，
+    数据只给窗口是为了上传轻量——两者缺一不可。
+
+产物（`发布/ai_news_daily-<打包日期>[-inc]/`）：
     index.html          部署根文档（运行态薄壳，页面装配器直接产出）
     data/views/*.json   投影数据（--ascii-only；否则同时给出中文目录名）
     release.json        发布清单（版本 + 文件 sha256 + 字节数 + 数据范围）
@@ -20,6 +27,7 @@
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -27,9 +35,13 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# 单日单窗口投影文件名（如 2026-10-11_24h.json / _48h.json）
+DATA_NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})_\d+h\.json$")
+
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
 VIEW_ROOT = ROOT / "数据" / "视图"
+PUBLISH_ROOT = ROOT / "数据" / "发布"
 RELEASE_ROOT = ROOT / "发布"
 BJ = timezone(timedelta(hours=8))
 
@@ -139,6 +151,23 @@ server {{
 """
 
 
+def remove_tree(path):
+    """删除目录树，不依赖系统回收站。
+
+    打包同一天重跑是常规操作（增量包目录名按日期固定），必须能覆盖旧目录。
+    但部分环境会把 shutil.rmtree 重定向到回收站，回收站不可用时直接抛错，
+    结果是**目录已被删掉、脚本却按失败退出**，后续步骤全不执行。
+    故这里先用 rmtree，捕获异常后再确认目录是否已消失：已消失即视为成功。
+    """
+    try:
+        shutil.rmtree(path)
+        return
+    except OSError as e:
+        if not path.exists():
+            return          # 实际已删除，只是回收站那步报错
+        raise SystemExit("清理旧包目录失败：%s（%s）" % (path, e))
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -172,21 +201,24 @@ def preflight(verbose=True):
     return bad
 
 
-def load_index():
-    p = VIEW_ROOT / "index.json"
+def load_index(src):
+    p = src / "index.json"
     if not p.exists():
-        raise SystemExit("缺少 %s —— 先运行 view_projection.py" % p)
+        raise SystemExit("缺少 %s —— 先运行 view_projection.py%s"
+                         % (p, "（发布目录为空时先跑 sync_publish.py）"
+                            if src == PUBLISH_ROOT else ""))
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def build(mode, out_dir, zip_it, verify, ascii_dir=False):
-    index = load_index()
+def build(mode, out_dir, zip_it, verify, ascii_dir=False, src=None):
+    src = src or VIEW_ROOT
+    index = load_index(src)
     days = sorted((index.get("days") or {}).keys())
     if not days:
-        raise SystemExit("投影索引为空：%s" % (VIEW_ROOT / "index.json"))
+        raise SystemExit("投影索引为空：%s" % (src / "index.json"))
 
     if out_dir.exists():
-        shutil.rmtree(out_dir)
+        remove_tree(out_dir)
     out_dir.mkdir(parents=True)
 
     files = []
@@ -199,7 +231,8 @@ def build(mode, out_dir, zip_it, verify, ascii_dir=False):
 
     # 数据目录：`--ascii-only` 时输出 `data/views/`。部分静态托管平台对 URL 做编码与重写，
     # 中文目录名 `数据/视图/` 在托管环境可能取不到数（本地可用）；两个目录内容一致，
-    # 前端 BASE_CANDIDATES 会逐个探测，谁通用谁。ASCII 版包体积约为一半。
+    # 前端 BASE_CANDIDATES 逐个探测，ASCII 候选已排最前（本地中文目录仍由后面的候选兜住）。
+    # ASCII 版包体积约为一半。
     ascii_only = ascii_dir
     if ascii_only:
         data_dirs = [("data", "views")]
@@ -209,7 +242,7 @@ def build(mode, out_dir, zip_it, verify, ascii_dir=False):
         for seg in data_dirs:
             dst = out_dir.joinpath(*seg)
             dst.mkdir(parents=True, exist_ok=True)
-            for f in sorted(VIEW_ROOT.glob("*.json")):
+            for f in sorted(src.glob("*.json")):
                 if f.name.endswith(".tmp"):
                     continue
                 shutil.copy2(f, dst / f.name)
@@ -227,13 +260,25 @@ def build(mode, out_dir, zip_it, verify, ascii_dir=False):
         encoding="utf-8", newline="\n")
     files += [out_dir / "本地预览.py", out_dir / "部署说明.md"]
 
+    # 包内实际带的数据日期（可能窄于 index.json 列出的日期：增量包的窗口外日期
+    # 要靠补打并部署全量包才会刷新为最新内容）。两者必须分开记，合并会谎报包的覆盖范围。
+    # 按命名匹配而非定长下标——文件名长度会随窗口标识变化，定长判断曾静默失配。
+    packaged_days = sorted({m.group(1) for f in files
+                            for m in [DATA_NAME.match(f.name)] if m})
+
     manifest = {
         "package": out_dir.name,
         "mode": mode,
+        "source": "publish" if src == PUBLISH_ROOT else "views",
         "built_at": datetime.now(BJ).strftime("%Y-%m-%d %H:%M:%S"),
         "spec_version": index.get("spec_version"),
         "schema": index.get("schema"),
         "data_dates": {"first": days[0], "last": days[-1], "count": len(days)},
+        "packaged_data_dates": {
+            "first": packaged_days[0] if packaged_days else None,
+            "last": packaged_days[-1] if packaged_days else None,
+            "count": len(packaged_days),
+        },
         "latest_complete_day": index.get("latest"),
         "newest_day": index.get("newest"),
         "coverage_until": index.get("coverage_until"),
@@ -276,7 +321,15 @@ def main():
     ap.add_argument("--ascii-only", action="store_true",
                     help="数据目录只用 ASCII 名（data/views/），不重复产出中文目录；"
                          "包体积约减半，托管环境取数更稳")
+    ap.add_argument("--source", choices=("publish", "views"), default="views",
+                    help="publish=取 数据/发布/（增量：窗口内数据 + 完整索引，日常用）；"
+                         "views=取 数据/视图/（全量，默认）")
     args = ap.parse_args()
+
+    src = PUBLISH_ROOT if args.source == "publish" else VIEW_ROOT
+    if args.source == "publish" and not (src / "index.json").exists():
+        raise SystemExit("发布目录为空：%s —— 先运行 `python 脚本/sync_publish.py`"
+                         % src)
 
     if not args.no_verify:
         print("== 打包前校验 ==")
@@ -287,15 +340,22 @@ def main():
 
     day = datetime.now(BJ).strftime("%Y%m%d")
     suffix = "" if args.mode == "full" else "-" + args.mode
+    if args.source == "publish" and args.mode == "full":
+        suffix = "-inc"
     out_dir = Path(args.out) if args.out else RELEASE_ROOT / ("ai_news_daily-%s%s" % (day, suffix))
 
-    print("== 打包（%s）==" % args.mode)
-    manifest, zp = build(args.mode, out_dir, args.zip, not args.no_verify, args.ascii_only)
+    print("== 打包（%s · 数据源 %s）==" % (args.mode, args.source))
+    manifest, zp = build(args.mode, out_dir, args.zip, not args.no_verify,
+                         args.ascii_only, src=src)
     print("包目录：%s" % out_dir)
-    print("  文件 %d 个 · 合计 %.1f KB · 数据 %s ~ %s（%d 天）"
+    print("  文件 %d 个 · 合计 %.1f KB · 索引列出 %s ~ %s（%d 天）"
           % (len(manifest["files"]), manifest["total_bytes"] / 1024,
              manifest["data_dates"]["first"], manifest["data_dates"]["last"],
              manifest["data_dates"]["count"]))
+    pk = manifest["packaged_data_dates"]
+    if pk["count"] != manifest["data_dates"]["count"]:
+        print("  本包实际带数据 %s ~ %s（%d 天）；其余日期沿用线上已上传的同路径文件"
+              % (pk["first"], pk["last"], pk["count"]))
     print("  契约 %s · 规范 %s · 最近完整日 %s"
           % (manifest["schema"], manifest["spec_version"],
              manifest["latest_complete_day"]))

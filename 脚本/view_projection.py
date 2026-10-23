@@ -410,6 +410,27 @@ def _sha256(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _stable_generated_at(path, payload, now_str=None):
+    """内容未变时沿用旧文件的 generated_at，否则用当前时间。
+
+    索引与视图每次投影都写当前时间，会让历史数据文件字节每日全变，
+    抵消内容哈希去重；数据没变就不该算作重新生成。
+    """
+    now_str = now_str or datetime.now(BJ).strftime("%Y-%m-%d %H:%M:%S")
+    if not path.exists():
+        return now_str
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return now_str
+    if not isinstance(old, dict):
+        return now_str
+    if ({k: v for k, v in old.items() if k != "generated_at"}
+            != {k: v for k, v in payload.items() if k != "generated_at"}):
+        return now_str
+    return old.get("generated_at") or now_str
+
+
 def build_all(verbose=True):
     """生成全部投影 + index；返回汇总 dict。调用方可直接用于验收/日志。"""
     dailies = load_dailies()
@@ -464,7 +485,9 @@ def build_all(verbose=True):
         if coverage_until else "",
         "days": days_meta,
     }
-    _atomic_write(VIEW_ROOT / "index.json",
+    index_path = VIEW_ROOT / "index.json"
+    index["generated_at"] = _stable_generated_at(index_path, index)
+    _atomic_write(index_path,
                   json.dumps(index, ensure_ascii=False, indent=1) + "\n")
 
     if verbose:

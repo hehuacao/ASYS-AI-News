@@ -36,23 +36,83 @@ python 脚本/queue_dump.py <日期>                # 3a 查看待裁决条目�
 python 脚本/adjudicate.py --date <日期> --decisions <裁决.json>   # 3b 落盘裁决
 python 脚本/translate_items.py                  # 4 生成对照译文（可选）
 python 脚本/view_projection.py                  # 5 生成视图投影
+python 脚本/sync_publish.py                     # 5b 同步发布目录（近 7 天数据 + 完整索引）
 python 脚本/render_dashboard.py                 # 6a 离线单文件
 python 脚本/render_dashboard.py --mode runtime  # 6b 运行态薄壳
 python 脚本/validate_data.py                   # 7 校验（详见下文「校验」）
 python 脚本/validate_view.py
 python 脚本/validate_dashboard.py
 python 脚本/gen_runtime_assets.py --check
+node   脚本/validate_sticky.js 仪表盘/ai_news_daily.html   # 吸顶栈几何
 node   脚本/smoke_dashboard.js  仪表盘/ai_news_daily.html
 node   脚本/smoke_dateswitch.js 仪表盘/ai_news_daily.html
 node   脚本/smoke_runtime.js    仪表盘/runtime_shell.html
-python 脚本/release.py --zip --ascii-only        # 8 打包
+python 脚本/release.py --source publish --zip --ascii-only   # 8 打包（增量）
+python 脚本/deploy_cloudflare.py                          # 9 部署（可选）
 ```
 
-**顺序要求**：译文必须在投影之前（译文经投影下发给页面）；校验必须在渲染之后（校验对象是产物）。
+**顺序要求**：译文必须在投影之前（译文经投影下发给页面）；校验必须在渲染之后（校验对象是产物）；发布目录必须在投影之后（从投影产物派生）。
 
 **`gen_runtime_assets.py`** 在表达层定义变更时才需要重跑（新增国家旗标、修改节点名称或界面文案、修改 `classify.py` 里的规范版本号）。日常链路只跑 `--check`。打包件内联了版本号，规范升版后必须重跑本脚本并重新渲染，否则 `release.py` 的资产一致性校验会中止。
 
 **`--ascii-only`** 输出 ASCII 路径的数据目录 `data/views/`（内容与中文目录一致）。托管环境对 URL 编码与重写的处理不一，中文路径可能取不到数据；发布到托管平台时建议带上此参数。
+
+---
+
+## 打包与部署
+
+三条常用指令：
+
+```bash
+# 打包发布（日常）：用发布目录的近7 天数据 + 完整索引
+python 脚本/sync_publish.py            # 刷新发布目录（跑完投影后）
+python 脚本/release.py --source publish --zip --ascii-only
+python 脚本/deploy_cloudflare.py
+
+# 全量打包发布：历史数据也随包刷新（首次部署、规则变更后用）
+python 脚本/release.py --source views --zip --ascii-only
+python 脚本/deploy_cloudflare.py
+
+# 重新跑数据再打包发布：先跑上方「每日完整链路」，再走增量打包
+```
+
+### 发布目录（`数据/发布/`）
+
+视图目录的**派生子集**：只存最近 N 天的数据文件，但 `index.json` 是**完整索引**（列出全部日期）。两者缺一不可——
+
+- 索引给全量 → 线上日期切换器保留全部历史导航；
+- 数据只给窗口 → 上传轻量；窗口外的历史日期靠**补打并部署全量包**刷新（平台会保留历史上传过的资产，但保留的是旧内容，且个别文件会退化为首页回退）。
+
+`release.json` 里 `data_dates` 是索引列出的范围，`packaged_data_dates` 是本包实际带的数据范围，**两者分开记**，合并会谎报包的覆盖范围。
+
+### 全量包的作用：刷新历史日期
+
+增量包只含窗口内的数据文件；窗口外的历史日期**要靠全量包刷新**——平台虽然会保留历史上传过的资产，但保留下来的是旧内容，且个别文件已退化为首页回退（页面会「日期能选、点开无数据」）。因此首次部署、换项目、改了 `classify.py` 的 `SPEC_VERSION`（触发全量重投影）后要跑一次全量发布；**日常每轮增量包部署后也要补打并部署全量包**。
+
+注意：只部署增量包时部署脚本的线上校验**同样会显示「通过」**（窗口外文件仍可取），**校验通过 ≠ 历史日期已是最新**。
+
+### `deploy_cloudflare.py`
+
+凭据只从 `配置/cloudflare_deploy.json` 读（项目内、不入库），经环境变量传给 wrangler，不进命令行、不落盘、不打印。`--preview` 部署到预览环境，不影响生产站点。
+
+部署成功后做三件事：① **线上校验**（逐个请求索引列出的日期文件，比对 `Content-Type` 与字节数——托管平台对不存在的路径返回 200 + 首页字节，只看状态码必漏判；包内文件任一异常即中止）；② **旧发布包**清理；③ **旧部署记录**清理。
+
+账户范围的 Token 无法列出账户，wrangler 自动取账户 ID 会失败（报 9109），故脚本经环境变量显式传 `CLOUDFLARE_ACCOUNT_ID`。
+
+部署成功后默认做两件清理（都可用 `--no-prune` 跳过）：
+
+| 清理 | 规则 | 保护 |
+|---|---|---|
+| 旧发布包 | 删除 `发布/` 下**日期早于本次包**的目录与 `.zip` | 同日的另一个类型（全量 / `-inc`）一律保留——全量包是规则变更后补打的底通 |
+| 旧部署记录 | 只留最近 `--keep-deployments` 条（默认 3） | 当前生产部署（`latest_deployment` / `canonical_deployment`）永不删除 |
+
+```bash
+python 脚本/deploy_cloudflare.py --prune-only              # 不部署，只清理
+python 脚本/deploy_cloudflare.py --keep-deployments 5      # 保留最近 5 条部署记录
+python 脚本/deploy_cloudflare.py --no-prune                # 部署但不清理
+```
+
+删旧包前会校验目标绝对路径确实位于 `发布/` 之内、且包名严格匹配 `ai_news_daily-<YYYYMMDD>[-inc]`；不符合即跳过并报出，不做模糊匹配。清理失败不中断链路（属housekeeping），逐项报出成功/失败。
 
 ---
 
@@ -187,12 +247,15 @@ python 脚本/validate_data.py                # 数据审计：数量/去重/可
 python 脚本/validate_view.py                # 投影校验：契约/与事实源比对/校验值
 python 脚本/validate_dashboard.py           # 页面终检：结构/外链/编号/对比度/发布包
 python 脚本/gen_runtime_assets.py --check    # 前端资产与定义是否一致
+node 脚本/validate_sticky.js 仪表盘/ai_news_daily.html  # 吸顶栈几何：层高实测/不重叠
 node 脚本/smoke_dashboard.js  仪表盘/ai_news_daily.html
 node 脚本/smoke_dateswitch.js 仪表盘/ai_news_daily.html
 node 脚本/smoke_runtime.js    仪表盘/runtime_shell.html
 ```
 
 前四套需要已有数据才有意义；无数据时给出明确的缺失提示，不会静默通过。
+
+**`validate_sticky.js` 校验吸顶栈几何**（topbar / axis-mini / filters 三层）：层高以实测值为准，不用写死的数值；层间不重叠、窄屏不横向滚动。改动吸顶层或层高后必须跑它 —— 这类问题在 jsdom 冒烟里看不出来，只能靠几何断言与真实浏览器复核。
 
 **jsdom 只验证结构，不执行布局与动画。** 对齐、溢出、触达高度、半透明叠字这类问题必须在真实浏览器中复核，不能以冒烟测试全绿作为视觉结论。
 

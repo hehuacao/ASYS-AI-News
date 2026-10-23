@@ -346,23 +346,70 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const usFlags = [...srcFlags].filter(f => f.outerHTML.includes("#3C3B6E"));
   t("美国旗标可识别（蓝色 canton）", usFlags.length > 0, usFlags.length + " 个");
 
-  // 第三轮：热点条目名称后来源国旗（取有热点的视图：13 日 24h）
-  const hotView = [...doc.querySelectorAll('.day[data-window="24"]')]
-    .find(x => x.querySelectorAll(".hot-item").length > 0) || visibleDay;
-  const hotFlagGroups = hotView.querySelectorAll(".hot-item .hot-flags");
-  const hotN = hotView.querySelectorAll(".hot-item").length;
-  t("热点条目名称后带来源国旗", hotFlagGroups.length === hotN && hotN > 0,
-    hotFlagGroups.length + "/" + hotN);
-  const hotFlagN = hotView.querySelectorAll(".hot-item .hot-flag").length;
-  const hotSrcN = [...hotView.querySelectorAll(".hot-count")]
-    .reduce((s, e) => s + parseInt(e.textContent, 10), 0);
-  t("热点国旗数 = 信源总数（一信源一旗）", hotFlagN === hotSrcN,
-    hotFlagN + " vs " + hotSrcN);
+  // 第三轮：热点条目名称后来源国旗
+  // 默认日可能恰好没有交叉热点（某些日期入档量少，可能一个交叉事件都没有），
+  // 断言因此取「内联投影里确有交叉热点」的视图，测完切回原视图——
+  // 这与「写死某个日期」不同：目标日期由页面自身载荷决定，不随数据形态误报。
+  const hotDate = () => IDX_DATES.reduce((best, d) => {
+    const n = ((SRC.views[d + "_24h"] || {}).hot_events || []).length;
+    const bn = best ? ((SRC.views[best + "_24h"] || {}).hot_events || []).length : -1;
+    return n > bn ? d : best;
+  }, null);
+  const withHotDay = async (fn) => {
+    const base = visibleDay.dataset.date;
+    const win = +(visibleDay.dataset.window || 24);
+    const nowHot = ((SRC.views[base + "_" + win + "h"] || {}).hot_events || []).length;
+    const target = nowHot ? null : hotDate();
+    if (target) { await window.switchView(target, 24); await sleep(120); }
+    try {
+      return await fn(visibleDay);
+    } finally {
+      if (target) { await window.switchView(base, win); await sleep(120); }
+    }
+  };
+
+  const hotStats = await withHotDay(day => {
+    const v = SRC.views[day.dataset.date + "_" + day.dataset.window + "h"] || {};
+    const hot = v.hot_events || [];
+    return {
+      n: day.querySelectorAll(".hot-item").length,
+      groups: day.querySelectorAll(".hot-item .hot-flags").length,
+      flags: day.querySelectorAll(".hot-item .hot-flag").length,
+      // 徽标 = 独立信源数（投影 source_count：同 URL 转载不重复计）
+      badge: [...day.querySelectorAll(".hot-item .hot-count")]
+        .reduce((s, e) => s + (parseInt(e.textContent, 10) || 0), 0),
+      expectBadge: hot.reduce((s, e) => s + (e.source_count || 0), 0),
+      // 国旗 = 该事件的全部报道信源（一信源一旗，与明细行/抽屉同口径）
+      expectFlags: hot.reduce((s, e) =>
+        s + new Set((e.members || []).map(m => m.source_id)).size, 0),
+      flagW: (() => {
+        const f = day.querySelector(".hot-flag svg.flag");
+        return f ? f.getAttribute("width") : null;
+      })(),
+    };
+  });
+  const hotN = hotStats.n;
+  const noHot = hotN === 0;   // 全部视图均无交叉热点 → 相关断言不适用
+  t("热点条目名称后带来源国旗", noHot || hotStats.groups === hotN,
+    noHot ? "全部视图均无交叉热点，不适用" : hotStats.groups + "/" + hotN);
+  t("热点徽标「N 信源」= 投影 source_count 之和（独立信源口径）",
+    noHot || hotStats.badge === hotStats.expectBadge,
+    noHot ? "不适用" : hotStats.badge + " vs " + hotStats.expectBadge);
+  t("热点国旗数 = 报道信源数（一信源一旗）", noHot || hotStats.flags === hotStats.expectFlags,
+    noHot ? "不适用" : hotStats.flags + " vs " + hotStats.expectFlags);
   t("旗标紧跟标题而非行尾（标题非 flex:1）",
     /\.hot-title\{flex:0 1 auto/.test(html) && /\.hot-flags\{[^}]*margin-left:10px/.test(html));
-  t("旗标尺寸 16px（与卡片统一）",
-    !!hotView.querySelector(".hot-flag svg.flag") &&
-    hotView.querySelector(".hot-flag svg.flag").getAttribute("width") === "16");
+  t("旗标尺寸 16px（与卡片统一）", noHot || hotStats.flagW === "16",
+    noHot ? "不适用" : String(hotStats.flagW));
+
+  // 回归：窄屏下同排的「N 信源」徽标 + 国旗 +「涉及中国」+ 跳转按钮
+  // 宽度之和超过可用宽度，标题被 flex 收缩到 0px 并被 overflow:hidden 完全裁掉，
+  // 表现为「今日热点第一条没有标题文字」。判据只看「有没有被压没」这一实质，
+  // 不写死具体像素——阈值随视口、字号档位、徽标数量变化。
+  // jsdom 无布局，故此处只校验「窄屏换行规则存在」，实际宽度由真实浏览器复核。
+  t("热点标题窄屏独占整行（flex-wrap + flex-basis:100%），不会被压成 0 宽",
+    /\.hot-head\{[^}]*flex-wrap:wrap/.test(html) &&
+    /\.hot-title\{flex:1 1 100%/.test(html));
 
   // 日期菜单开合
   const dateBtn = doc.getElementById("dateBtn");
@@ -489,9 +536,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   }
 
   // 交互：热点 ↔ 面板 双向定位
-  {
+  // 同样取有交叉热点的视图跑完整交互链，结束后切回原视图，后续断言不受影响。
+  await withHotDay(async () => {
     const cur = curView();
     const hotIds = (cur.hot_events || []).map(e => e.canonical_item).filter(Boolean);
+    const nHotEv = (cur.hot_events || []).length;
     const jumps = [...visibleDay.querySelectorAll(".hot-jump")];
     const nopanel = [...visibleDay.querySelectorAll(".hot-nopanel")];
     t("每条热点都给出落点（定位按钮 或 未入档标记）",
@@ -500,7 +549,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     t("热点定位目标 = 该视图真实存在的卡片",
       jumps.length > 0 && jumps.every(j =>
         !!visibleDay.querySelector('.card[data-id="' + j.dataset.target + '"]')),
-      jumps.map(j => j.dataset.target).join(", "));
+      nHotEv ? jumps.map(j => j.dataset.target).join(", ") : "该视图无交叉热点");
     t("热点定位按钮显示「环节 + 序号」",
       jumps.length > 0 && jumps.every(j =>
         /\S/.test(j.textContent.trim()) && j.querySelector("b")),
@@ -663,7 +712,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       doc.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       await sleep(300);
     }
-  }
+  });
 
   // 中国国旗标注（热点中存在中国事件时）
   const cnTags = visibleDay.querySelectorAll(".hot-cn");
@@ -842,19 +891,27 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         bars[0].querySelector(".mb-count").textContent.replace(/\s+/g, "")));
     // 展开/收起依赖「存在超过首屏的环节」；数据量小时该断言不适用，跳过而不是崩溃
     if (bars.length) {
-      day.querySelector('.more-btn[data-act="more"]').click();
+      // 点击与量测必须落在**同一个环节**上：more-bar 只出现在卡片数超过首屏 8 条的环节，
+      // 首个 more-bar 未必属于第 1 个环节。期望值由该节实有卡片数封顶（数据量小的日子
+      // 8 + 20 本就凑不满），写死 28 会随数据形态误报。
+      const hostNode = _secs.find(_needBar);
+      const total0 = hostNode.querySelectorAll(".grid .card").length;
+      const expect0 = Math.min(8 + 20, total0);
+      hostNode.querySelector('.more-btn[data-act="more"]').click();
       await sleep(30);
-      const shown0 = [...day.querySelectorAll(".node")[0].querySelectorAll(".card")]
+      const shown0 = [...hostNode.querySelectorAll(".grid .card")]
         .filter(c => !c.hidden).length;
-      t("渐进加载：展开一批后为 8 + 20（桌面批次）", shown0 === 28, String(shown0));
+      t("渐进加载：展开一批后为 8 + 20（桌面批次，按该节总条数封顶）",
+        shown0 === expect0, shown0 + " / 期望 " + expect0 + "（共 " + total0 + "）");
       t("渐进加载：展开后出现「收起」",
-        !day.querySelector('.more-btn[data-act="less"]').hidden);
+        !hostNode.querySelector('.more-btn[data-act="less"]').hidden);
       t("渐进加载：读数随展开推进",
-        /已展开28/.test(bars[0].querySelector(".mb-count").textContent.replace(/\s+/g, "")));
-      day.querySelector('.more-btn[data-act="less"]').click();
+        new RegExp("已展开" + expect0 + "/").test(
+          hostNode.querySelector(".mb-count").textContent.replace(/\s+/g, "")));
+      hostNode.querySelector('.more-btn[data-act="less"]').click();
       await sleep(30);
       t("渐进加载：收起回到 8 条",
-        [...day.querySelectorAll(".node")[0].querySelectorAll(".card")]
+        [...hostNode.querySelectorAll(".grid .card")]
           .filter(c => !c.hidden).length === 8);
     }
 

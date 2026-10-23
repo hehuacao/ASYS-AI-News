@@ -820,8 +820,11 @@ html[data-theme="light"] .hw-btn.is-on{color:#fff}
 .hotbar-title i{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.1em;
   color:var(--text-muted);text-transform:uppercase}
 .hot-item{border-top:1px solid var(--border)}
-.hot-head{display:flex;align-items:center;gap:12px;width:100%;padding:9px 16px;
-  text-align:left;transition:background .15s ease-out}
+/* 允许换行：同排的「N 信源」徽标 + 国旗 +「涉及中国」+ 跳转按钮宽度之和可能超过窄屏，
+   单行不换行时 flex 收缩会把标题压到 0px 并被 overflow:hidden 完全裁掉（标题「消失」）。
+   换行后标题独占整行，徽标落到下一行，任何宽度下都不会被压没。 */
+.hot-head{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;width:100%;
+  padding:9px 16px;text-align:left;transition:background .15s ease-out}
 .hot-head:hover{background:color-mix(in srgb,var(--bg-surface) 60%,transparent)}
 .hot-count{
   flex:none;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
@@ -829,6 +832,9 @@ html[data-theme="light"] .hw-btn.is-on{color:#fff}
   background:color-mix(in srgb,var(--hot) 12%,transparent);
   font-variant-numeric:tabular-nums;
 }
+/* 桌面：标题按内容宽度并紧邻国旗（旗标贴在标题右侧而非行尾），
+   所以这里不能用 flex:1——那会把国旗推到行尾。
+   窄屏安全由 .hot-head 的 flex-wrap + 下方断点的 flex:1 1 100% 保证。 */
 .hot-title{flex:0 1 auto;min-width:0;font-size:13.5px;color:var(--text-primary);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 名称后来源国旗（紧贴标题，与字保持间距；一信源一旗，同国多旗保留） */
@@ -1685,7 +1691,9 @@ html[data-langmode="tgt"] .ct-zh,html[data-langmode="tgt"] .cs-zh{
   .node-desc::before{display:none}
   .node-count{margin-left:auto;padding-left:12px}
   .node-count b{font-size:19px}
-  .hot-title{white-space:normal}
+  /* 窄屏：标题独占一行（flex-basis:100%），徽标/国旗/跳转按钮换行到第二行，
+     避免同排固定宽元素把标题压成 0宽。 */
+  .hot-title{flex:1 1 100%;white-space:normal}
   .hot-flags{margin-left:2px}
   /* 主轴转纵向 */
   .axis-hero{padding:16px 14px 14px;border-radius:16px}
@@ -1950,12 +1958,17 @@ const IS_FILE = location.protocol === "file:";   // file:// 下浏览器禁止�
 /* 数据根候选：页面可能落在不同根下（项目根 / 仪表盘/ / 服务根 / 静态托管根）。
    逐个探测 index.json，取第一个返回合法索引的作为数据根，成功后固定，后续视图请求复用同一根。
    `data/views/` 是 ASCII 候选：部分静态托管平台对中文目录名会做 URL 编码，
-   路径形态可能与本地不一致；发布包同时提供 ASCII 目录以保证托管环境取得到数。 */
+   路径形态可能与本地不一致；发布包同时提供 ASCII 目录以保证托管环境取得到数。
+
+   顺序说明：**ASCII 候选排最前**。托管环境只提供 `data/views/`（`--ascii-only`），
+   若把中文路径放前面，每次加载都要先试 4 条注定 404 的路径才命中，白付 4 次网络往返
+   （线上实测：中文路径 4 次 404 → 第 5 次才命中 `data/views/index.json`）。
+   本地离线读文件、以及中文目录实际存在的场合，仍由后面的中文候选兜住。 */
 const BASE_CANDIDATES = (function(){
   const first = VIEW_SRC.base || "../数据/视图/";
-  return [first, "数据/视图/", "./数据/视图/", "/数据/视图/",
-          "data/views/", "./data/views/", "/data/views/"]
-    .filter((x, i, a) => a.indexOf(x) === i);
+  const ascii = ["data/views/", "./data/views/", "/data/views/"];
+  const cn = [first, "数据/视图/", "./数据/视图/", "/数据/视图/"];
+  return ascii.concat(cn).filter((x, i, a) => a.indexOf(x) === i);
 })();
 let VIEW_BASE = null;
 /* 某「日期 × 窗口」当前是否可取数：有内联兜底 → 可取；否则取决于数据根是否连通 */
@@ -2235,7 +2248,12 @@ async function switchView(d, w){
   const v = await loadView(d, ws);
   if (seq !== viewSeq) return;              // 快速连点：丢弃过期渲染
   if (!v){                                  // 取不到数：说明原因，不静默失败
-    if (VIEW_SRC.mode === "runtime") showNotice(runtimeNotice());
+    // 运行态：先收掉骨架屏——它是「正在取数」的占位，取数失败后继续留着会让页面
+    // 永远停在闪动的空白上（实测：卡片 0 个、容器只剩 .skel，比报错更难察觉）。
+    if (VIEW_SRC.mode === "runtime"){
+      if (dayEl.querySelector(".skel")) dayEl.innerHTML = "";
+      showNotice(missingDayNotice(d));
+    }
     else if (dayEl.children.length && !dayEl.querySelector(".hero")) dayEl.innerHTML = "";
     return;
   }
@@ -3557,6 +3575,16 @@ function runtimeNotice(){
   return "未能读到 数据/视图/（本页与数据目录的相对位置不符，或未通过 HTTP 访问），"
     + snap + tail;
 }
+/* 某个具体日期的投影取不到时的提示：与「整个数据源不可读」是两回事。
+   增量发布包里索引列全量历史、但只带窗口内的数据文件，窗口外的日期首次访问
+   就是这种情况——原因要说准，否则会被误判成部署坏了。 */
+function missingDayNotice(d){
+  if (IS_FILE)
+    return "读不到 " + d + " 的数据（file:// 下浏览器禁止页面读取同目录数据文件）。";
+  return "读不到 " + d + " 的数据：该日期的投影文件未随本次发布包含。"
+    + "日常发布只带最近几天的数据，更早日期需要先访问一次全量发布"
+    + "（包内 index.json 会列出全部日期）；已停留在最近可用日期。";
+}
 (async function boot(){
   try {
     INDEX = await loadIndex();
@@ -3682,8 +3710,8 @@ def main():
         print("提示：运行态薄壳需经 HTTP 访问——浏览器禁止 file:// 页面读取本地 JSON。")
         print("      在项目根目录执行：python -m http.server 8765")
         print("      再访问：http://127.0.0.1:8765/仪表盘/runtime_shell.html")
-        print("      页面会依次探测 ../数据/视图/、数据/视图/、./数据/视图/、/数据/视图/ 作为数据根；"
-              "均不可达时自动降级为内联首屏快照并在页首说明原因。")
+        print("      页面会依次探测 data/views/、./data/views/、/data/views/、../数据/视图/ 等作为数据根"
+              "（ASCII 优先）；均不可达时自动降级为内联首屏快照并在页首说明原因。")
 
 
 if __name__ == "__main__":

@@ -62,6 +62,67 @@ def affected_days(snap_days):
     return sorted(out)
 
 
+def remove_snapshot_dir(d):
+    """删除一个快照目录；返回 (是否已消失, 说明)。
+
+    删除类操作报错时必须复查目标是否真的还在：环境可能把删除重定向到
+    回收站，报错但目录已消失；也可能静默失败却报成功。
+    """
+    import shutil
+    try:
+        shutil.rmtree(d)
+    except Exception as e:
+        if not d.exists():
+            return True, "已删除（%s）" % type(e).__name__
+        return False, "删除失败：%s" % e
+    if d.exists():
+        return False, "删除后目录仍存在"
+    return True, "已删除"
+
+
+def prune_snapshots(keep_days, apply_=False):
+    """按保留期清理快照目录。
+
+    快照是**唯一的重建事实源**（rebuild_days 的重建范围由快照目录推算），
+    删掉就永久失去重建该日的能力，故：默认只预览，必须显式 --apply 才真删；
+    只删「日期命名」且位于快照根目录下的目录，不碰其它任何文件。
+    """
+    cutoff = (datetime.now() - timedelta(days=keep_days)).strftime("%Y-%m-%d")
+    targets = []
+    for root in (SNAPSHOT_ROOT, BACKFILL_ROOT):
+        if not root.is_dir():
+            continue
+        for d in sorted(root.iterdir()):
+            if not d.is_dir() or not DAY_RE.match(d.name):
+                continue
+            if d.name < cutoff:
+                targets.append(d)
+    print("== 快照保留期检查（保留 %d 天，清理早于 %s 的快照）==" % (keep_days, cutoff))
+    if not targets:
+        print("   无过期快照（当前最早 %s）" % (
+            min((d.name for d in targets), default="—")))
+        return 0
+    total = 0
+    for d in targets:
+        size = sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+        total += size
+        print("   %s  %.1f MB" % (d, size / 1024 / 1024))
+    print("   合计 %d 个目录 · %.1f MB" % (len(targets), total / 1024 / 1024))
+    if not apply_:
+        print("   （预览模式；加 --apply 才真正删除）")
+        return 0
+    ok = fail = 0
+    for d in targets:
+        done, msg = remove_snapshot_dir(d)
+        if done:
+            ok += 1
+        else:
+            fail += 1
+            print("   ! %s — %s" % (d.name, msg))
+    print("   删除完成：成功 %d / 失败 %d" % (ok, fail))
+    return 0 if not fail else 1
+
+
 def decisions_path(day):
     p = DAILY_ROOT / ("%s_自然日裁决.json" % day)
     return p if p.exists() else None
@@ -96,7 +157,16 @@ def main():
     ap.add_argument("--no-adjudicate", action="store_true", help="只跑分类")
     ap.add_argument("--keep-queue", action="store_true",
                     help="裁决时允许保留未覆盖的待裁决条目（默认即 --partial 行为）")
+    ap.add_argument("--prune-snapshots", action="store_true",
+                    help="按保留期清理过期快照目录（默认只预览）")
+    ap.add_argument("--keep-days", type=int, default=90,
+                    help="快照保留天数（默认 90，配合 --prune-snapshots）")
+    ap.add_argument("--apply", action="store_true",
+                    help="真正执行 --prune-snapshots 的删除（缺省仅预览）")
     args = ap.parse_args()
+
+    if args.prune_snapshots:
+        return prune_snapshots(args.keep_days, apply_=args.apply)
 
     snaps = snapshot_dates()
     if not snaps:

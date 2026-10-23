@@ -1111,9 +1111,15 @@ def build_items(date_str, only=None, window_h=24, snapshots=None):
                 continue
             meta = meta_map.get(sid, {})
             if meta and meta.get("enabled") is False:
-                skip_all.append((sid, snap_dir.name, "已停用 · %s"
-                                 % short_disable_reason(meta.get("notes"))))
-                continue
+                # 停用只对**停用日（disabled_at）及其之后的快照**生效：停用前的
+                # 历史快照照常参与。否则「停用」等于「清空该源全部历史」——
+                # 快照里仍存的有效数据会随停用一并从日报中消失。
+                # 从未启用过的源没有 disabled_at，一律跳过（本就未参与过）。
+                dis_at = (meta.get("disabled_at") or "").strip()
+                if not dis_at or snap_dir.name >= dis_at:
+                    skip_all.append((sid, snap_dir.name, "已停用 · %s"
+                                     % short_disable_reason(meta.get("notes"))))
+                    continue
             items, err = parse_snapshot(path, meta)
             if err:
                 skip_all.append((sid, snap_dir.name, err))
@@ -1617,6 +1623,27 @@ def route_confidence(items):
     return filed, review, unclassified
 
 
+def stable_generated_at(path, payload, now_str=None):
+    """内容未变时沿用旧的 generated_at，否则用当前时间。
+
+    生成时间每次重建都变，会让下游投影产物（视图文件）字节每日全变，
+    抵消内容哈希去重；数据没变就不该算作重新生成。
+    """
+    now_str = now_str or bj_now().strftime("%Y-%m-%d %H:%M:%S")
+    if not path.exists():
+        return now_str
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return now_str
+    if not isinstance(old, dict):
+        return now_str
+    if ({k: v for k, v in old.items() if k != "generated_at"}
+            != {k: v for k, v in payload.items() if k != "generated_at"}):
+        return now_str
+    return old.get("generated_at") or now_str
+
+
 def write_outputs(date_str, items, events, filed, review, unclassified, skipped,
                   filtered_old, extra=None, window_hours=24, partial=None):
     """写日报数据集与质检报告。
@@ -1668,6 +1695,7 @@ def write_outputs(date_str, items, events, filed, review, unclassified, skipped,
     if extra:
         dataset.update(extra)
     out_json = DAILY_ROOT / ("%s.json" % date_str)
+    dataset["generated_at"] = stable_generated_at(out_json, dataset)
     with open(out_json, "w", encoding="utf-8", newline="\n") as f:
         json.dump(dataset, f, ensure_ascii=False, indent=1)
 

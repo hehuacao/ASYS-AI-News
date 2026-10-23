@@ -114,6 +114,26 @@ def src_hash(it):
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
+# 源字段 → 译文字段的对应关系
+TRANS_FIELD_MAP = (("title", "title_alt"), ("summary", "summary_alt"),
+                   ("summary_full", "full_alt"))
+
+
+def missing_translation(rec, item):
+    """返回缺失的译文字段名：源字段有内容、对应译文却为空。
+
+    增量判定只看 src_hash 会有盲区：模型偶尔漏返回某个字段，而记录已经
+    落盘、hash 又与原文一致 → 该字段永远不会被重译。译文不完整时必须
+    重新入队（源字段本就为空的条目不算缺失）。
+    """
+    rec = rec or {}
+    out = []
+    for src_key, alt_key in TRANS_FIELD_MAP:
+        if (item.get(src_key) or "").strip() and not (rec.get(alt_key) or "").strip():
+            out.append(alt_key)
+    return out
+
+
 # ------------------------------------------------------------------ 密钥
 def load_api_key():
     """按 环境变量 → 项目根 config.json → 本机技能目录 config.json 的顺序取密钥。"""
@@ -251,10 +271,10 @@ def main():
         lang = lang_of(it.get("title") or "")
         h = src_hash(it)
         rec = table.get(iid)
-        if rec and rec.get("src_hash") == h:
-            continue                       # 原文未变
         if rec and rec.get("trans", {}).get("reviewed"):
             continue                       # 人工已定稿，不覆盖
+        if rec and rec.get("src_hash") == h and not missing_translation(rec, it):
+            continue                       # 原文未变且译文齐全
         todo.append({
             "id": iid,
             "lang": lang,
