@@ -51,8 +51,12 @@ TOTAL_HOLDER_KEYS = ("hits", "data", "meta", "page", "pagination", "result")
 
 # HTTP 状态分类：**信源失效**只应源于源本身（路径写错、schema 变更导致解析失败）。
 # 代理抖动 / 配额限流 / 上游 5xx 属环境或配额问题，计入 fail_streak 会把健康信源误杀。
-# 故 403 / 429 / 5xx 归 env_limited，与「网络不可达」同样不计失败。
+# 故 403 / 429 / 5xx 归 env_limited，与「网络不可达」同样不计失败；401 见下。
 ENV_LIMITED_STATUS = frozenset({403, 429})
+# 401（未认证）单独处理：免认证的公开源返回 401 说明**中间层拦截**而非源站拒绝
+# （实测代理对同一域名的 arxiv 正常返回 200、对本域返回 401）。源声明了认证
+# 凭据时，401 才是真失败（凭据无效）。无凭据的源一律按环境受限处理。
+AUTH_REQUIRED_STATUS = frozenset({401, 407})
 
 
 def bj_now():
@@ -199,12 +203,29 @@ def extract_total(obj, path=None):
     return None
 
 
-def is_env_limited(status):
+def source_needs_auth(src):
+    """源是否声明了认证凭据（决定 401 属真失败还是中间层拦截）。"""
+    for k in ("auth", "token", "api_key", "apikey", "secret", "authorization"):
+        if src.get(k):
+            return True
+    hdrs = src.get("headers") or {}
+    if isinstance(hdrs, dict):
+        for k in hdrs:
+            if str(k).lower() in ("authorization", "x-api-key", "api-key"):
+                return True
+    return False
+
+
+def is_env_limited(status, src=None):
     """HTTP 状态是否属「环境或配额受限」（代理拦截、限流、上游 5xx）。"""
     if status is None:
         return False
     if status in ENV_LIMITED_STATUS:
         return True
+    if status in AUTH_REQUIRED_STATUS:
+        # 免认证的公开源收到 401 → 中间层拦截（代理认证墙），非源站拒绝；
+        # 声明了凭据的源收到 401 → 凭据无效，是真失败。
+        return not (src is not None and source_needs_auth(src))
     return 500 <= status < 600
 
 
@@ -327,7 +348,7 @@ def probe_source(src):
             if kind != "ok" or not text:
                 res["error"] = text or ("HTTP %s" % status)
                 res["unreachable"] = kind == "network"
-                if kind == "http" and is_env_limited(status):
+                if kind == "http" and is_env_limited(status, src):
                     res["env_limited"] = True
                 return res
             pairs = parse_feed_items(text)
@@ -345,7 +366,7 @@ def probe_source(src):
             if r["kind"] != "ok":
                 res["error"] = r["text"] or ("HTTP %s" % r["status"])
                 res["unreachable"] = r["kind"] == "network"
-                if r["kind"] == "http" and is_env_limited(r["status"]):
+                if r["kind"] == "http" and is_env_limited(r["status"], src):
                     res["env_limited"] = True
                 return res
             obj = r["base_obj"]
